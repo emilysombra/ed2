@@ -145,3 +145,16 @@ class HalfOpenHash(BaseHash):
             if(self.table[pos] is None):
                 self.table[pos] = value
                 break
+
+    def search(self, value):
+        for i in range(int(self.th / 2) + 1):
+            pos = self.hash_function(value + i ** 2)
+            if(self.table[pos] == value):
+                return pos
+
+        return -1
+
+    def delete(self, value):
+        pos = self.search(value)
+        if(pos != -1):
+            self.table[pos] = None
