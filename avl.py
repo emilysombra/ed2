@@ -193,3 +193,4 @@ if __name__ == '__main__':
     print(tree.preorder(root))
     root = tree.delete(root, 5)
     print(tree.preorder(root))
+    print(tree.get_height(root))

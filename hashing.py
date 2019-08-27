@@ -35,10 +35,18 @@ class AVLOpenHash(BaseHash):
     @property
     def load_factor(self):
         load = 0
-        for list_item in self.table:
-            if(list_item.get_height > load):
-                load = len(list_item.get_height)
+        for root in self.table:
+            if(self.tree.get_height(root) > load):
+                load = self.tree.get_height(root)
         return load
+
+    @property
+    def balance_factor(self):
+        soma = 0
+        for root in self.table:
+            soma += self.tree.get_height(root)
+
+        return soma / (self.th * self.load_factor)
 
 
 class ListOpenHash(BaseHash):
@@ -140,6 +148,22 @@ class SquareClosedHash(BaseHash):
         pos = self.search(value)
         if(pos != -1):
             self.table[pos] = None
+
+
+class DoubleRClosedHash(BaseHash):
+    def __init__(self, th):
+        super().__init__(th, None)
+        self.r = next_prime(self.th / 2)
+
+    def hd(self, n):
+        return self.r - (n % self.r)
+
+    def add(self, value):
+        for i in range(1, self.r + 1):
+                pos = self.hash_function(i * self.hd(value))
+                if(pos is None):
+                    self.table[pos] = value
+                    break
 
 
 class HalfOpenHash(BaseHash):
