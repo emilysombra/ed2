@@ -1,4 +1,5 @@
 from primality import next_prime
+from avl import AVLTree
 
 
 class BaseHash:
@@ -11,6 +12,33 @@ class BaseHash:
 
     def hash_function(self, x):
         return x % len(self.table)
+
+
+class AVLOpenHash(BaseHash):
+    def __init__(self, th):
+        super().__init__(th, None)
+        self.tree = AVLTree()
+
+    def add(self, value):
+        pos = self.hash_function(value)
+        self.table[pos] = self.tree.add(value, self.table[pos])
+
+    def search(self, value):
+        pos = self.hash_function(value)
+        return pos, self.tree.search(self.table[pos], value)
+
+    def delete(self, value):
+        pos, root = self.search(value)
+        if(root is not None):
+            self.table[pos].delete(self.table[pos], value)
+
+    @property
+    def load_factor(self):
+        load = 0
+        for list_item in self.table:
+            if(list_item.get_height > load):
+                load = len(list_item.get_height)
+        return load
 
 
 class ListOpenHash(BaseHash):
@@ -40,6 +68,14 @@ class ListOpenHash(BaseHash):
             if(len(list_item) > load):
                 load = len(list_item)
         return load
+
+    @property
+    def balance_factor(self):
+        soma = 0
+        for setlist in self.table:
+            soma += (self.load_factor - len(setlist))
+
+        return soma / (self.th * self.load_factor)
 
 
 class LinearClosedHash(BaseHash):
