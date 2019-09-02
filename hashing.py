@@ -1,4 +1,4 @@
-from primality import next_prime
+from primality import next_prime, previous_prime
 from avl import AVLTree
 
 
@@ -21,7 +21,7 @@ class AVLOpenHash(BaseHash):
 
     def add(self, value):
         pos = self.hash_function(value)
-        self.table[pos] = self.tree.add(value, self.table[pos])
+        self.table[pos] = self.tree.add(value, root=self.table[pos])
 
     def search(self, value):
         pos = self.hash_function(value)
@@ -160,10 +160,53 @@ class DoubleRClosedHash(BaseHash):
 
     def add(self, value):
         for i in range(1, self.r + 1):
-                pos = self.hash_function(i * self.hd(value))
-                if(pos is None):
-                    self.table[pos] = value
-                    break
+            pos = self.hash_function(i * self.hd(value))
+            if(self.table[pos] is None):
+                self.table[pos] = value
+                break
+
+    def search(self, value):
+        for i in range(1, self.r + 1):
+            pos = self.hash_function(i * self.hd(value))
+            if(self.table[pos] == value):
+                return pos
+        return -1
+
+    def delete(self, value):
+        pos = self.search(value)
+        if(pos != -1):
+            self.table[pos] = None
+
+
+class VirtualResizeClosedHash(BaseHash):
+    def __init__(self, th):
+        super().__init__(th, None)
+
+    def add(self, value):
+        virtual_th = self.th
+        while(True):
+            pos = value % virtual_th
+            if(self.table[pos] is None):
+                self.table[pos] = value
+                break
+            if(virtual_th == 2):
+                break
+            virtual_th = previous_prime(virtual_th)
+
+    def search(self, value):
+        virtual_th = self.th
+        while(True):
+            pos = value % virtual_th
+            if(self.table[pos] == value):
+                return pos
+            if(virtual_th == 2):
+                return -1
+            virtual_th = previous_prime(virtual_th)
+
+    def delete(self, value):
+        pos = self.search(value)
+        if(pos != -1):
+            self.table[pos] = None
 
 
 class HalfOpenHash(BaseHash):
@@ -218,3 +261,71 @@ class HalfOpenHash(BaseHash):
         pos = self.search(value)
         if(pos != -1):
             self.table[pos] = None
+
+
+class LambdaHMA(BaseHash):
+    def __init__(self, th, max_height):
+        super().__init__(th, None)
+        self.tree = AVLTree()
+        self.max_height = max_height
+
+    def rehash(self):
+        # tamanho novo da tabela hash
+        new_th = next_prime(self.th * 2)
+        # nova tabela
+        new_tb = [None for i in range(new_th)]
+        # percorre a tabela original
+        for root in self.table:
+            # se a arvore não for nula:
+            if(root is not None):
+                # lista de elementos da avl
+                items = self.tree.to_list(root)
+                # para cada elemento na lista
+                for item in items:
+                    # loop de tentativas
+                    for i in range(int(new_th / 2) + 1):
+                        pos = (item + i ** 2) % new_th
+                        if(self.tree.get_height(new_tb[pos]) >
+                           self.max_height):
+                            continue
+                        if(self.tree.search(new_tb[pos], item) is not None):
+                            continue
+                        new_tb[pos] = self.tree.add(item, root=new_tb[pos])
+                        break
+        self.table = new_tb
+        self.th = new_th
+
+    def can_add(self, value):
+        not_available = 0
+        for root in self.table:
+            if(self.tree.get_height(root) > self.max_height):
+                not_available += 1
+                continue
+            if(self.tree.search(root, value) is not None):
+                not_available += 1
+                continue
+        return not_available <= int(self.th / 2)
+
+    def add(self, value):
+        if(not self.can_add(value)):
+            self.rehash()
+
+        for i in range(int(self.th / 2) + 1):
+            pos = self.hash_function(value + i ** 2)
+            if(self.tree.get_height(self.table[pos]) > self.max_height):
+                continue
+            if(self.tree.search(self.table[pos], value) is not None):
+                continue
+            self.tree.add(value, root=self.table[pos])
+            break
+
+    def search(self, value):
+        for i in range(int(self.th / 2) + 1):
+            pos = self.hash_function(value + i ** 2)
+            if(self.tree.search(self.table[pos], value) is not None):
+                return pos, self.tree.search(self.table[pos], value)
+
+    def delete(self, value):
+        pos, root = self.search(value)
+        if(root is not None):
+            self.table[pos].delete(self.table[pos], value)
